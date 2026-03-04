@@ -144,7 +144,8 @@ llama-server $(cat conversational-agent-llm/llama-cpp.txt | tr '\n' ' ')
 
 Or use the [llama.cpp Docker image](https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md) with the same parameters.
 
-### Benchmarks (NVIDIA GB10 - DGX Spark)
+<details>
+<summary><strong>Benchmarks (NVIDIA GB10 - DGX Spark)</strong></summary>
 
 Tested across 20 different home automation commands with 3 repetitions each. Full results in [`qwen3-benchmarks.md`](conversational-agent-llm/qwen3-benchmarks.md).
 
@@ -167,6 +168,8 @@ Sample commands from the benchmark:
 | "dim the office" | 462 | 3/3 | `scene_office_dim` |
 | "we have visitors" | 437 | 3/3 | `ai_we_have_visitors` |
 | "close office shades" | 504 | 3/3 | `script.ai_close_office_curtains` |
+
+</details>
 
 ---
 
@@ -202,7 +205,8 @@ This stack consists of two services:
 
 The bridge exposes a Wyoming-compatible endpoint on port `10900` that Home Assistant can discover and use as a TTS provider.
 
-### Building for ARM64 (DGX Spark)
+<details>
+<summary><strong>Building for ARM64 (DGX Spark)</strong></summary>
 
 On **x86/x64** you can use the upstream image `ghcr.io/remsky/kokoro-fastapi-gpu:latest` directly. On **ARM64** machines like the DGX Spark, the upstream GPU Dockerfile is **broken** - it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image, causing the build to fail. You need to build the image locally instead. The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokorofastapi-arm64-build-patch.sh) script handles this:
 
@@ -218,6 +222,8 @@ What the script does:
 4. **Restarts the compose stack** at `/opt/wyoming-openai` to pick up the new image
 
 You need to re-run this script whenever you want to update Kokoro FastAPI to a newer version.
+
+</details>
 
 ```bash
 docker compose -f text-to-speech/compose.kokorofastapi.yml up -d
