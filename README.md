@@ -6,13 +6,6 @@ GPU/CUDA-accelerated voice control stack for Home Assistant. Runs on **x86/x64**
 
 Every component in this stack runs **entirely on your own hardware**. Your voice commands, transcriptions, conversations, and responses never leave your local network - no cloud APIs, no third-party services, no internet connection required after initial setup.
 
-This means:
-- **Privacy** - No audio or text is sent to external servers. Your voice data stays on your machine.
-- **Reliability** - No dependency on cloud uptime, API rate limits, or vendor availability. Your voice control works even if your internet goes down.
-- **Speed** - No round-trip latency to remote servers. With GPU acceleration, the entire pipeline (wake word → STT → LLM → TTS) responds in under a second.
-- **No recurring costs** - No API usage fees, no monthly subscriptions. Once deployed, it runs for free.
-- **Full control** - You choose the models, tune the parameters, and own the entire stack. Swap models, adjust thresholds, or customize voices without asking anyone's permission.
-
 ## Architecture Overview
 
 ```
