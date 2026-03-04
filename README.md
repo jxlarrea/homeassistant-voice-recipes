@@ -59,7 +59,7 @@ docker compose -f wake-word/compose.openwakeword.yml up -d
 
 **Directory:** [`speech-to-text/`](speech-to-text/)
 
-Converts speech audio into text using GPU-accelerated ONNX models. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** — a fast, accurate ASR model optimized for streaming speech recognition.
+Converts speech audio into text using GPU-accelerated ONNX models. Based on [wyoming-onnx-asr](https://github.com/tboby/wyoming-onnx-asr) by tboby (x86 only). The [fork used here](https://github.com/jxlarrea/wyoming-onnx-asr) adds ARM64 support, enabling it to run on the NVIDIA DGX Spark and other ARM64 systems. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** — a fast, accurate ASR model optimized for streaming speech recognition.
 
 | Setting | Value |
 |---------|-------|
@@ -75,9 +75,18 @@ Alternative models (commented out in the compose file):
 docker compose -f speech-to-text/compose.wyoming-onnx-asr.yaml up -d
 ```
 
-#### Speaker Verification — Wyoming Voice Match
+#### Voice Extraction & Speaker Verification — [Wyoming Voice Match](https://github.com/jxlarrea/wyoming-voice-match)
 
-An optional layer that sits between the ASR service and Home Assistant, verifying the speaker's identity before processing commands. This prevents unauthorized users from controlling your smart home via voice.
+A Wyoming protocol ASR proxy that **extracts your voice from background noise** before forwarding audio to the downstream STT service. This solves two common problems: false activations triggered by TVs or radios, and noisy transcripts contaminated with background audio.
+
+How it works:
+
+1. **Audio buffering** — Captures incoming audio after wake word detection
+2. **Speaker verification** — Analyzes the loudest segment against enrolled voiceprints using [ECAPA-TDNN](https://arxiv.org/abs/2005.07143) neural speaker embeddings. If no match is found, the pipeline stops silently — preventing false activations
+3. **Speaker extraction** — Divides the full audio into speech regions, keeping only regions that match your voiceprint. Background voices (TV, radio, other people) are discarded
+4. **ASR forwarding** — Sends the cleaned audio — containing only your voice — to the downstream STT service for transcription
+
+The result is dramatically cleaner transcriptions, especially in noisy environments.
 
 | Setting | Value |
 |---------|-------|
@@ -88,7 +97,7 @@ An optional layer that sits between the ASR service and Home Assistant, verifyin
 | Extraction Threshold | `0.25` |
 | Require Speaker Match | `true` |
 
-Voice Match connects upstream to the ONNX ASR service. When `REQUIRE_SPEAKER_MATCH=true`, only enrolled speakers can execute commands. Update `UPSTREAM_URI` to point to your ASR instance.
+Voice Match sits in front of the ONNX ASR service as a proxy. Update `UPSTREAM_URI` to point to your ASR instance. When `REQUIRE_SPEAKER_MATCH=true`, only enrolled speakers can trigger commands. Speaker verification runs in 5-25ms on GPU.
 
 ```bash
 docker compose -f speech-to-text/compose.wyioming-voice-match.yml up -d
@@ -137,7 +146,7 @@ Or use the [llama.cpp Docker image](https://github.com/ggml-org/llama.cpp/blob/m
 
 #### Benchmarks (NVIDIA GB10 — DGX Spark)
 
-Tested across 20 different home automation commands with 3 repetitions each:
+Tested across 20 different home automation commands with 3 repetitions each. Full results in [`qwen3-benchmarks.md`](conversational-agent-llm/qwen3-benchmarks.md).
 
 | Metric | Result |
 |--------|--------|
@@ -146,7 +155,18 @@ Tested across 20 different home automation commands with 3 repetitions each:
 | Min Latency | 293 ms |
 | Max Latency | 918 ms |
 
-Full benchmark results with per-command breakdown: [`qwen3-benchmarks.md`](conversational-agent-llm/qwen3-benchmarks.md)
+Sample commands from the benchmark:
+
+| Voice Command | Avg (ms) | Accuracy | Tool Called |
+|---------------|----------|----------|-------------|
+| "it is bedtime" | 418 | 3/3 | `script.ai_master_bedroom_bedtime` |
+| "make it cozy" | 427 | 3/3 | `script.ai_master_bedroom_cozy` |
+| "food is here" | 453 | 3/3 | `script.food_delivery_here` |
+| "open bedroom shades" | 469 | 3/3 | `script.ai_open_master_bedroom_curtains` |
+| "turn on office ac" | 458 | 3/3 | `script.office_ac_on_eco` |
+| "dim the office" | 462 | 3/3 | `scene_office_dim` |
+| "we have visitors" | 437 | 3/3 | `ai_we_have_visitors` |
+| "close office shades" | 504 | 3/3 | `script.ai_close_office_curtains` |
 
 ---
 
@@ -184,19 +204,22 @@ The bridge exposes a Wyoming-compatible endpoint on port `10900` that Home Assis
 
 #### Building for ARM64 (DGX Spark)
 
-The upstream Kokoro FastAPI Dockerfile uses `--platform=$BUILDPLATFORM` which breaks native ARM64 builds. The included patch script fixes this:
+The upstream Kokoro FastAPI GPU Dockerfile is **broken on ARM64** — it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image even on ARM64 hosts, causing the build to fail. The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokorofastapi-arm64-build-patch.sh) script works around this:
 
 ```bash
 bash text-to-speech/kokorofastapi-arm64-build-patch.sh
 ```
 
-This script:
-1. Pulls the latest Kokoro FastAPI source
-2. Patches the Dockerfile to remove the platform constraint
-3. Builds a native ARM64 GPU image as `kokoro-fastapi-gpu:local`
-4. Restarts the compose stack
+What the script does:
 
-For x86/x64, you can build or pull the image directly without the patch.
+1. **Pulls the latest source** from the Kokoro FastAPI repo at `/opt/kokoro-fastapi`
+2. **Patches the Dockerfile** — uses `sed` to strip the `--platform=$BUILDPLATFORM` flag from `docker/gpu/Dockerfile`, writing a corrected `Dockerfile.arm64` that builds natively on the host architecture
+3. **Builds a local Docker image** tagged as `kokoro-fastapi-gpu:local` — this is the image referenced in the compose file
+4. **Restarts the compose stack** at `/opt/wyoming-openai` to pick up the new image
+
+You need to re-run this script whenever you want to update Kokoro FastAPI to a newer version.
+
+For **x86/x64**, you can build or pull the upstream image directly without the patch.
 
 ```bash
 docker compose -f text-to-speech/compose.kokorofastapi.yml up -d
@@ -205,6 +228,25 @@ docker compose -f text-to-speech/compose.kokorofastapi.yml up -d
 #### Volume Configuration
 
 The `kokoro.env` file is mounted into the container and controls runtime settings like `default_volume_multiplier=3.0`. Place your model files in `/opt/models/kokoro`.
+
+---
+
+### 5. Tying it all together: Voice Satellite Card
+
+A [Home Assistant custom card and integration](https://github.com/jxlarrea/voice-satellite-card-integration) that turns **any web browser into a voice satellite** — wall-mounted tablets, kiosks, or any device running the HA dashboard becomes a fully functional voice control endpoint with no dedicated hardware required.
+
+Key features:
+
+- **In-browser wake word detection** — Runs microWakeWord locally via TensorFlow Lite WebAssembly, so wake word processing happens on the device itself without hitting the server
+- **Continuous listening** — Automatically returns to wake word mode after each conversation, behaving like a dedicated satellite
+- **Visual feedback** — Themed activity bar showing pipeline state (listening, processing, speaking), real-time transcription display, and reactive audio visualizations. Includes built-in skins (Alexa, Google Home, Siri, Retro Terminal, and more)
+- **Voice-controlled timers** — On-screen countdown pills with alerts
+- **Announcements** — Receive TTS announcements via service calls with pre-announcement chimes
+- **Multi-turn conversations** — Continue talking without repeating the wake word
+- **Audio processing** — Built-in noise suppression, echo cancellation, auto-gain, and voice isolation
+- **Per-device configuration** — Each browser/tablet can have its own satellite entity and settings on a shared dashboard
+
+This is the presentation layer that ties the entire pipeline together — it captures the user's voice via the browser microphone and feeds it through the Wake Word → STT → LLM → TTS stack described above, then plays back the synthesized response.
 
 ---
 
@@ -239,7 +281,3 @@ Once all services are running, add them as Wyoming protocol integrations in Home
 
 - **NVIDIA DGX Spark** (ARM64, GB10 GPU) — full stack, all components
 - **x86/x64** systems with NVIDIA GPUs (CUDA-capable)
-
-## License
-
-[MIT](LICENSE) — Xavier Larrea, 2026
