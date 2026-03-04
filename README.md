@@ -10,10 +10,10 @@ Every component in this stack runs **entirely on your own hardware**. Your voice
 
 ```mermaid
 graph LR
-    A["👂 Wake Word Detection\nOpenWakeWord\n:10400"]
-    B["🎙️ Speech-to-Text\nONNX ASR + Voice Match\n:10300 · :10350"]
-    C["🧠 LLM Agent\nQwen3-14B · llama.cpp\n:8080"]
-    D["🔊 Text-to-Speech\nKokoro FastAPI\n:8880 · :10900"]
+    A["👂 Wake Word Detection<br>OpenWakeWord<br>:10400"]
+    B["🎙️ Speech-to-Text<br>ONNX ASR + Voice Match<br>:10300 · :10350"]
+    C["🧠 LLM Agent<br>Qwen3-14B · llama.cpp<br>:8080"]
+    D["🔊 Text-to-Speech<br>Kokoro FastAPI<br>:8880 · :10900"]
 
     A -->|audio| B -->|text| C -->|response| D
 ```
