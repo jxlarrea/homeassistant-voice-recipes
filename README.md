@@ -182,7 +182,7 @@ This stack consists of two services:
 
 | Setting | Value |
 |---------|-------|
-| Image | `kokoro-fastapi-gpu:local` (locally built) |
+| Image | `ghcr.io/remsky/kokoro-fastapi-gpu:latest` |
 | Port | `8880` |
 | ONNX GPU | `True` |
 | ONNX Threads | `12` |
@@ -204,7 +204,7 @@ The bridge exposes a Wyoming-compatible endpoint on port `10900` that Home Assis
 
 ### Building for ARM64 (DGX Spark)
 
-The upstream Kokoro FastAPI GPU Dockerfile is **broken on ARM64** - it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image even on ARM64 hosts, causing the build to fail. The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokorofastapi-arm64-build-patch.sh) script works around this:
+On **x86/x64** you can use the upstream image `ghcr.io/remsky/kokoro-fastapi-gpu:latest` directly. On **ARM64** machines like the DGX Spark, the upstream GPU Dockerfile is **broken** - it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image, causing the build to fail. You need to build the image locally instead. The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokorofastapi-arm64-build-patch.sh) script handles this:
 
 ```bash
 bash text-to-speech/kokorofastapi-arm64-build-patch.sh
@@ -214,12 +214,10 @@ What the script does:
 
 1. **Pulls the latest source** from the Kokoro FastAPI repo at `/opt/kokoro-fastapi`
 2. **Patches the Dockerfile** - uses `sed` to strip the `--platform=$BUILDPLATFORM` flag from `docker/gpu/Dockerfile`, writing a corrected `Dockerfile.arm64` that builds natively on the host architecture
-3. **Builds a local Docker image** tagged as `kokoro-fastapi-gpu:local` - this is the image referenced in the compose file
+3. **Builds a local Docker image** tagged as `kokoro-fastapi-gpu:local` - update the image in the compose file to use this tag instead of the upstream one
 4. **Restarts the compose stack** at `/opt/wyoming-openai` to pick up the new image
 
 You need to re-run this script whenever you want to update Kokoro FastAPI to a newer version.
-
-For **x86/x64**, you can build or pull the upstream image directly without the patch.
 
 ```bash
 docker compose -f text-to-speech/compose.kokorofastapi.yml up -d
