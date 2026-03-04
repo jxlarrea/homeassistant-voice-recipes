@@ -9,13 +9,18 @@ Every component in this stack runs **entirely on your own hardware**. Your voice
 ## Architecture Overview
 
 ```mermaid
-graph LR
-    A["👂 Wake Word Detection<br>OpenWakeWord<br>:10400"]
-    B["🎙️ Speech-to-Text<br>ONNX ASR + Voice Match<br>:10300 · :10350"]
-    C["🧠 LLM Agent<br>Qwen3-14B · llama.cpp<br>:8080"]
-    D["🔊 Text-to-Speech<br>Kokoro FastAPI<br>:8880 · :10900"]
+graph TD
+    A("👂 <b>Wake Word Detection</b><br><i>OpenWakeWord</i><br><code>:10400</code>")
+    B("🎙️ <b>Speech-to-Text</b><br><i>ONNX ASR + Voice Match</i><br><code>:10300 · :10350</code>")
+    C("🧠 <b>Conversational Agent</b><br><i>Qwen3-14B · llama.cpp</i><br><code>:8080</code>")
+    D("🔊 <b>Text-to-Speech</b><br><i>Kokoro FastAPI</i><br><code>:8880 · :10900</code>")
 
-    A -->|audio| B -->|text| C -->|response| D
+    A -- "audio stream" --> B -- "transcript" --> C -- "response text" --> D
+
+    style A fill:#4a90d9,stroke:#2a6cb8,color:#fff
+    style B fill:#6b8e23,stroke:#4a6b14,color:#fff
+    style C fill:#d4772c,stroke:#b35d1a,color:#fff
+    style D fill:#9b59b6,stroke:#7d3c98,color:#fff
 ```
 
 Every component runs as a Docker container with NVIDIA GPU passthrough, communicating via the [Wyoming protocol](https://github.com/rhasspy/wyoming) - Home Assistant's native voice satellite interface.
