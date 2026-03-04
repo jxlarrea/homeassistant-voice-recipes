@@ -1,4 +1,5 @@
-# HomeAssistant Voice Control Recipes
+# <img width="48" height="48" alt="icon" src="https://github.com/user-attachments/assets/048345d6-0ed7-4f99-b505-a13869614515" /> HomeAssistant Voice Control Recipes
+
 
 GPU/CUDA-accelerated voice control stack for Home Assistant. Runs on **x86/x64** and **GB10 ARM64** devices (including the [NVIDIA DGX Spark](https://www.nvidia.com/en-us/products/workstations/dgx-spark/)).
 
