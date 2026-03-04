@@ -1,0 +1,24 @@
+services:
+  wyoming-onnx-asr:
+    image: ghcr.io/jxlarrea/wyoming-onnx-asr-gpu
+    container_name: wyoming-onnx-asr
+    volumes:
+      - /opt/models/wyoming-onnx-asr/data:/data
+      - /opt/models/wyoming-onnx-asr/cache:/cache
+    restart: unless-stopped
+    ports:
+      - "10300:10300"
+    command: [
+      "--model-en", "nemo-parakeet-tdt-0.6b-v2",
+#      "--model-en", "onnx-community/whisper-large-v3-turbo",
+#      "--model-en", "mekpro/whisper-medium-turbo"
+      "--uri", "tcp://0.0.0.0:10300",
+      "--model-dir", "/data"
+    ]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]

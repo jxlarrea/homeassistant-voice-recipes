@@ -1,0 +1,56 @@
+services:
+  wyoming_openai:
+    image: ghcr.io/roryeckel/wyoming_openai:latest
+    container_name: wyoming_openai
+    ports:
+      - "10900:10300"
+    restart: unless-stopped
+    environment:
+      WYOMING_URI: tcp://0.0.0.0:10300
+      WYOMING_LOG_LEVEL: INFO
+      WYOMING_LANGUAGES: en
+      TTS_SPEED: 1.1
+      TTS_OPENAI_URL: http://kokoro:8880/v1
+      TTS_MODELS: "kokoro"
+      TTS_STREAMING_MODELS: "kokoro"
+      TTS_BACKEND: "KOKORO_FASTAPI"
+#      TTS_VOICES: "af_heart af_alloy af_aoede af_bella af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky am_adam am_echo am_eric am_fenrir am_liam am_micha>
+      TTS_VOICES: "af_sky"
+      TTS_STREAMING_VOICES: "af_sky"
+      TTS_STREAMING_MIN_WORDS: "6"
+      TTS_STREAMING_MAX_CHARS: "220"
+    depends_on:
+      kokoro:
+        condition: service_healthy
+
+
+  kokoro:
+    image: kokoro-fastapi-gpu:local
+    container_name: kokoro
+    restart: unless-stopped
+    ports:
+      - "8880:8880"
+    environment:
+      - USE_GPU=True
+      - USE_ONNX=True
+      - ONNX_NUM_THREADS=12  # Maximize core usage for vectorized ops
+      - ONNX_INTER_OP_THREADS=6  # Higher inter-op for parallel matrix operations
+      - ONNX_EXECUTION_MODE=parallel
+      - ONNX_OPTIMIZATION_LEVEL=all
+      - ONNX_MEMORY_PATTERN=True
+      - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8880/v1/test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    volumes:
+      - /opt/wyoming-openai/kokoro.env:/app/.env
+      - /opt/models/kokoro:/app/api/src/models/v1_0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [ gpu ]

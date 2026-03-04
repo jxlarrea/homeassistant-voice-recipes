@@ -1,0 +1,25 @@
+services:
+  wyoming-voice-match:
+    image: ghcr.io/jxlarrea/wyoming-voice-match:latest
+    container_name: wyoming-voice-match
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "10350:10350"
+    volumes:
+      - /opt/models/wyoming-voice-match/data:/data
+    environment:
+      - UPSTREAM_URI=tcp://192.168.0.40:10300
+      - VERIFY_THRESHOLD=0.26
+      - EXTRACTION_THRESHOLD=0.25
+      - HF_HOME=/data/hf_cache
+      - REQUIRE_SPEAKER_MATCH=true
+      - TAG_SPEAKER=false
+      - LOG_LEVEL=INFO
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
