@@ -1,6 +1,6 @@
 # HomeAssistant Voice Control Recipes
 
-GPU/CUDA-accelerated voice control stack for Home Assistant. Runs on **x86/x64** and **ARM64** (including the [NVIDIA DGX Spark](https://www.nvidia.com/en-us/products/workstations/dgx-spark/)).
+GPU/CUDA-accelerated voice control stack for Home Assistant. Runs on **x86/x64** and **GB10 ARM64** devices (including the [NVIDIA DGX Spark](https://www.nvidia.com/en-us/products/workstations/dgx-spark/)).
 
 ## 100% Local - No Cloud, No Subscriptions, No Data Leaving Your Network
 
@@ -50,7 +50,7 @@ docker compose -f wake-word/compose.openwakeword.yml up -d
 
 **Directory:** [`speech-to-text/`](speech-to-text/)
 
-Converts speech audio into text using GPU-accelerated ONNX models. Based on [wyoming-onnx-asr](https://github.com/tboby/wyoming-onnx-asr) by tboby (x86 only). The [fork used here](https://github.com/jxlarrea/wyoming-onnx-asr) adds ARM64 support, enabling it to run on the NVIDIA DGX Spark and other ARM64 systems. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** - a fast, accurate ASR model optimized for streaming speech recognition.
+Converts speech audio into text using GPU-accelerated ONNX models. Based on [wyoming-onnx-asr](https://github.com/tboby/wyoming-onnx-asr) by tboby (x86 only). The [fork used here](https://github.com/jxlarrea/wyoming-onnx-asr) adds GB10 ARM64 support, enabling it to run on the NVIDIA DGX Spark and other systems. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** - a fast, accurate ASR model optimized for streaming speech recognition.
 
 | Setting | Value |
 |---------|-------|
