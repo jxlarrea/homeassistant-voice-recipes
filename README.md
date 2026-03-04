@@ -31,7 +31,7 @@ Every component runs as a Docker container with NVIDIA GPU passthrough, communic
 
 ---
 
-## 1. Wake Word Detection - [OpenWakeWord](https://github.com/rhasspy/wyoming-openwakeword)
+## 1. 👂 Wake Word Detection - [OpenWakeWord](https://github.com/rhasspy/wyoming-openwakeword)
 
 **Directory:** [`wake-word/`](wake-word/)
 
@@ -53,7 +53,7 @@ docker compose -f wake-word/compose.openwakeword.yml up -d
 
 ---
 
-## 2. Speech-to-Text (STT) - [Wyoming ONNX ASR](https://github.com/jxlarrea/wyoming-onnx-asr)
+## 2. 🎙️ Speech-to-Text (STT) - [Wyoming ONNX ASR](https://github.com/jxlarrea/wyoming-onnx-asr)
 
 **Directory:** [`speech-to-text/`](speech-to-text/)
 
@@ -103,7 +103,7 @@ docker compose -f speech-to-text/compose.wyioming-voice-match.yml up -d
 
 ---
 
-## 3. Conversational Agent (LLM) - [Qwen3-14B](https://huggingface.co/unsloth/Qwen3-14B-GGUF)
+## 3. 🧠 Conversational Agent (LLM) - [Qwen3-14B](https://huggingface.co/unsloth/Qwen3-14B-GGUF)
 
 **Directory:** [`conversational-agent-llm/`](conversational-agent-llm/)
 
@@ -170,7 +170,7 @@ Sample commands from the benchmark:
 
 ---
 
-## 4. Text-to-Speech (TTS) - Kokoro FastAPI
+## 4. 🔊 Text-to-Speech (TTS) - Kokoro FastAPI
 
 **Directory:** [`text-to-speech/`](text-to-speech/)
 
@@ -229,7 +229,7 @@ The `kokoro.env` file is mounted into the container and controls runtime setting
 
 ---
 
-## 5. Tying it all together: Voice Satellite Card
+## 5. 📱 Voice Satellite
 
 A [Home Assistant custom card and integration](https://github.com/jxlarrea/voice-satellite-card-integration) that turns **any web browser into a voice satellite** - wall-mounted tablets, kiosks, or any device running the HA dashboard becomes a fully functional voice control endpoint with no dedicated hardware required.
 
