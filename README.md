@@ -73,7 +73,7 @@ Alternative models (commented out in the compose file):
 docker compose -f speech-to-text/compose.wyoming-onnx-asr.yaml up -d
 ```
 
-### Voice Extraction & Speaker Verification -[Wyoming Voice Match](https://github.com/jxlarrea/wyoming-voice-match)
+### Voice Extraction & Speaker Verification - [Wyoming Voice Match](https://github.com/jxlarrea/wyoming-voice-match)
 
 A Wyoming protocol ASR proxy that **extracts your voice from background noise** before forwarding audio to the downstream STT service. This solves two common problems: false activations triggered by TVs or radios, and noisy transcripts contaminated with background audio.
 
