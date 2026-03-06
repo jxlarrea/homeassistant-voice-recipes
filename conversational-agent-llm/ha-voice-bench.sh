@@ -6,7 +6,7 @@
 #   ./ha-voice-bench.sh <container-name>
 #
 # Examples:
-#   ./ha-voice-bench.sh llama-qwen-14b-q8
+#   ./ha-voice-bench.sh llama-qwen3-14b-q8
 #   ./ha-voice-bench.sh llama-qwen3.5-9b-q8
 #
 # The container must already be running. The script auto-detects the port
