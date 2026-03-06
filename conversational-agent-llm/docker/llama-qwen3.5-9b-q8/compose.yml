@@ -1,0 +1,71 @@
+# =============================================================================
+# Qwen3.5-9B-Q8_0 — Lightweight general purpose
+#
+# Port: 8081
+# =============================================================================
+
+services:
+  llama-server:
+    image: llama-server:latest
+    container_name: llama-qwen3.5-9b-q8
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /opt/models/llama-server:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - -m
+      - /models/Qwen3.5-9B-Q8_0.gguf
+      - -c
+      - "16384"
+      - -b
+      - "1024"
+      - -ub
+      - "512"
+      - -ngl
+      - "999"
+      - --jinja
+      - -fa
+      - "on"
+      - -sm
+      - "none"
+      - -mg
+      - "0"
+      - -np
+      - "1"
+      - --parallel
+      - "1"
+      - --temp
+      - "0.6"
+      - --top-k
+      - "20"
+      - --top-p
+      - "0.95"
+      - --min-p
+      - "0.00"
+      - --presence-penalty
+      - "1.5"
+      - --repeat-penalty
+      - "1.0"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8081"
+      - --log-verbosity
+      - "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

@@ -1,0 +1,109 @@
+# =============================================================================
+# Qwen3-14B-Q8_0 + 0.6B draft — HA Voice Pipeline
+#
+# Ports:
+#   8080 — Proxy (HA connects here, transparent)
+#   9090 — Dashboard (view request analytics)
+#   8081 — llama-server (internal, direct access if needed)
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f
+#   docker compose down
+#
+# Dashboard: http://<spark-ip>:9090
+# =============================================================================
+
+services:
+  llama-server:
+    image: llama-server:latest
+    container_name: llama-qwen3-14b-q8
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /opt/models/llama-server:/models:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command:
+      - -m
+      - /models/Qwen3-14B-Q8_0.gguf
+      - -md
+      - /models/Qwen3-0.6B-Q4_K_M.gguf
+      - -c
+      - "18192"
+      - -cd
+      - "9182"
+      - -ngld
+      - "999"
+      - -b
+      - "1024"
+      - -ub
+      - "512"
+      - -ngl
+      - "999"
+      - --draft-max
+      - "16"
+      - --draft-min
+      - "1"
+      - --draft-p-min
+      - "0.75"
+      - --jinja
+      - -fa
+      - "on"
+      - -sm
+      - "none"
+      - -mg
+      - "0"
+      - --parallel
+      - "1"
+      - --slot-prompt-similarity
+      - "0.2"
+      - --temp
+      - "0.0"
+      - --top-k
+      - "20"
+      - --top-p
+      - "0.95"
+      - --min-p
+      - "0.00"
+      - --presence-penalty
+      - "1.5"
+      - --repeat-penalty
+      - "1.0"
+      - --cache-type-k
+      - q8_0
+      - --cache-type-v
+      - q8_0
+      - --chat-template-kwargs
+      - '{"enable_thinking":false,"reasoning_effort": "low"}'
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8081"
+      - --log-verbosity
+      - "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  proxy:
+    image: llama-server:latest
+    container_name: llama-proxy
+    restart: unless-stopped
+    network_mode: host
+    entrypoint: ["llama-proxy"]
+    environment:
+      - PROXY_LISTEN=:8080
+      - PROXY_UPSTREAM=http://127.0.0.1:8081
+      - PROXY_DASH=:9090
+    depends_on:
+      llama-server:
+        condition: service_healthy
