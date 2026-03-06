@@ -55,11 +55,10 @@ docker compose up -d
 
 **Directory:** [`speech-to-text/wyoming-onnx-asr/`](speech-to-text/wyoming-onnx-asr/)
 
-Converts speech audio into text using GPU-accelerated ONNX models. Based on [wyoming-onnx-asr](https://github.com/tboby/wyoming-onnx-asr) by tboby (x86 only). The [fork used here](https://github.com/jxlarrea/wyoming-onnx-asr) adds GB10 ARM64 support, enabling it to run on the NVIDIA DGX Spark and other systems. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** - a fast, accurate ASR model optimized for streaming speech recognition.
+Converts speech audio into text using GPU-accelerated ONNX models. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** - a fast, accurate ASR model optimized for streaming speech recognition.
 
 | Setting | Value |
 |---------|-------|
-| Image | `ghcr.io/jxlarrea/wyoming-onnx-asr-gpu` |
 | Port | `10300` |
 | Model | `nemo-parakeet-tdt-0.6b-v2` |
 
@@ -67,9 +66,18 @@ Alternative models (commented out in the compose file):
 - `onnx-community/whisper-large-v3-turbo`
 - `mekpro/whisper-medium-turbo`
 
+**x86/x64** — Uses the upstream [wyoming-onnx-asr](https://github.com/tboby/wyoming-onnx-asr) image by tboby via [`compose.yaml`](speech-to-text/wyoming-onnx-asr/compose.yaml):
+
 ```bash
 cd speech-to-text/wyoming-onnx-asr
 docker compose up -d
+```
+
+**ARM64 (DGX Spark)** — Uses a [fork](https://github.com/jxlarrea/wyoming-onnx-asr) that adds GB10 ARM64 support via [`compose.arm64.yaml`](speech-to-text/wyoming-onnx-asr/compose.arm64.yaml):
+
+```bash
+cd speech-to-text/wyoming-onnx-asr
+docker compose -f compose.arm64.yaml up -d
 ```
 
 ### Voice Extraction & Speaker Verification - [Wyoming Voice Match](https://github.com/jxlarrea/wyoming-voice-match)

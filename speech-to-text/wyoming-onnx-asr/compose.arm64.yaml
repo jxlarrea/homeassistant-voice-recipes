@@ -1,6 +1,6 @@
 services:
   wyoming-onnx-asr:
-    image: ghcr.io/tboby/wyoming-onnx-asr-gpu
+    image: ghcr.io/jxlarrea/wyoming-onnx-asr-gpu
     container_name: wyoming-onnx-asr
     volumes:
       - /opt/models/wyoming-onnx-asr/data:/data
