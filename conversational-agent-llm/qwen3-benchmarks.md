@@ -48,7 +48,7 @@
 | # | Test | Command | Avg (ms) | Min (ms) | Max (ms) | Accuracy | Tool Called | Args |
 |---|------|---------|----------|----------|----------|----------|-------------|------|
 | 1 | bedtime | it is bedtime | 418 | 311 | 626 | 3/3 | HassRunScript | `{"name":"script.ai_master_bedroom_bedtime"}` |
-| 2 | message_mode | massage mode | 420 | 318 | 616 | 3/3 | HassRunScript | `{"name":"script.ai_master_bedroom_message_mode"}` |
+| 2 | message_mode | message mode | 420 | 318 | 616 | 3/3 | HassRunScript | `{"name":"script.ai_master_bedroom_message_mode"}` |
 | 3 | cozy_bedroom | make it cozy | 427 | 321 | 625 | 3/3 | HassRunScript | `{"name":"script.ai_master_bedroom_cozy"}` |
 | 4 | cold_bedroom | make it cold | 430 | 315 | 655 | 3/3 | HassRunScript | `{"name":"script.bedroom_ac_turbo"}` |
 | 5 | food_here | food is here | 453 | 320 | 718 | 3/3 | HassRunScript | `{"name":"script.food_delivery_here"}` |
