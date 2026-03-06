@@ -1,5 +1,5 @@
 # =============================================================================
-# llama-server + llama-proxy base image (x86_64 / CUDA 13)
+# llama-server + llama-proxy base image for DGX Spark (ARM64 / CUDA 13)
 #
 # Contains:
 #   - llama-server (from latest llama.cpp)
@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Build llama.cpp
 RUN git clone --depth 1 https://github.com/ggml-org/llama.cpp.git /build/llama.cpp
 WORKDIR /build/llama.cpp
-RUN cmake -B build -DGGML_CUDA=ON \
-    && ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/lib/x86_64-linux-gnu/libcuda.so.1 \
-    && cmake --build build --config Release -j $(nproc) \
-    && rm /usr/lib/x86_64-linux-gnu/libcuda.so.1
+RUN cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=121 \
+    && ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/lib/aarch64-linux-gnu/libcuda.so.1 \
+    && cmake --build build --config Release -j 10 \
+    && rm /usr/lib/aarch64-linux-gnu/libcuda.so.1
 
 # Build llama-proxy
 COPY llama-proxy/ /build/llama-proxy/

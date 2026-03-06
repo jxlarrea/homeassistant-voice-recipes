@@ -30,7 +30,7 @@ Every component runs as a Docker container with NVIDIA GPU passthrough, communic
 
 ## 1. 👂 Wake Word Detection - [OpenWakeWord](https://github.com/rhasspy/wyoming-openwakeword)
 
-**Directory:** [`wake-word/`](wake-word/)
+**Directory:** [`wake-word/openwakeword/`](wake-word/openwakeword/)
 
 Listens for a wake word to activate the voice pipeline. Uses the `okay_nabu` model by default, with support for custom wake word models.
 
@@ -45,14 +45,15 @@ Listens for a wake word to activate the voice pipeline. Uses the `okay_nabu` mod
 **Custom models** can be placed in `/opt/models/wyoming-openwakeword/custom` and will be available in the `/custom` directory inside the container.
 
 ```bash
-docker compose -f wake-word/compose.openwakeword.yml up -d
+cd wake-word/openwakeword
+docker compose up -d
 ```
 
 ---
 
 ## 2. 🎙️ Speech-to-Text (STT) - [Wyoming ONNX ASR](https://github.com/jxlarrea/wyoming-onnx-asr)
 
-**Directory:** [`speech-to-text/`](speech-to-text/)
+**Directory:** [`speech-to-text/wyoming-onnx-asr/`](speech-to-text/wyoming-onnx-asr/)
 
 Converts speech audio into text using GPU-accelerated ONNX models. Based on [wyoming-onnx-asr](https://github.com/tboby/wyoming-onnx-asr) by tboby (x86 only). The [fork used here](https://github.com/jxlarrea/wyoming-onnx-asr) adds GB10 ARM64 support, enabling it to run on the NVIDIA DGX Spark and other systems. The recommended model is **NVIDIA NeMo Parakeet TDT 0.6B v2** - a fast, accurate ASR model optimized for streaming speech recognition.
 
@@ -67,10 +68,13 @@ Alternative models (commented out in the compose file):
 - `mekpro/whisper-medium-turbo`
 
 ```bash
-docker compose -f speech-to-text/compose.wyoming-onnx-asr.yaml up -d
+cd speech-to-text/wyoming-onnx-asr
+docker compose up -d
 ```
 
 ### Voice Extraction & Speaker Verification - [Wyoming Voice Match](https://github.com/jxlarrea/wyoming-voice-match)
+
+**Directory:** [`speech-to-text/wyioming-voice-match/`](speech-to-text/wyioming-voice-match/)
 
 A Wyoming protocol ASR proxy that **extracts your voice from background noise** before forwarding audio to the downstream STT service. This solves two common problems: false activations triggered by TVs or radios, and noisy transcripts contaminated with background audio.
 
@@ -95,7 +99,8 @@ The result is dramatically cleaner transcriptions, especially in noisy environme
 Voice Match sits in front of the ONNX ASR service as a proxy. Update `UPSTREAM_URI` to point to your ASR instance. When `REQUIRE_SPEAKER_MATCH=true`, only enrolled speakers can trigger commands. Speaker verification runs in 5-25ms on GPU.
 
 ```bash
-docker compose -f speech-to-text/compose.wyioming-voice-match.yml up -d
+cd speech-to-text/wyioming-voice-match
+docker compose up -d
 ```
 
 ---
@@ -104,9 +109,72 @@ docker compose -f speech-to-text/compose.wyioming-voice-match.yml up -d
 
 **Directory:** [`conversational-agent-llm/`](conversational-agent-llm/)
 
-The brain of the pipeline. Runs [Qwen3-14B](https://huggingface.co/unsloth/Qwen3-14B-GGUF) (Q8_0 quantization) with **speculative decoding** using a [Qwen3-0.6B](https://huggingface.co/unsloth/Qwen3-0.6B-GGUF) (Q4_K_M quantization) draft model for significantly faster inference. Served via [llama.cpp](https://github.com/ggml-org/llama.cpp) with an OpenAI-compatible API. If you don't have the VRAM to run the 14B model, [Qwen3-8B](https://huggingface.co/unsloth/Qwen3-8B-GGUF) (Q8_0 quantization) works great too and is a solid alternative for GPUs with less memory.
+The brain of the pipeline. Runs [Qwen3-14B](https://huggingface.co/unsloth/Qwen3-14B-GGUF) (Q8_0 quantization) with **speculative decoding** using a [Qwen3-0.6B](https://huggingface.co/unsloth/Qwen3-0.6B-GGUF) (Q4_K_M quantization) draft model for significantly faster inference. Served via [llama.cpp](https://github.com/ggml-org/llama.cpp) with an OpenAI-compatible API. If you don't have the VRAM to run the 14B model, [Qwen3.5-9B](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF) (Q8_0 quantization) is a solid alternative for GPUs with less memory.
 
 A sample system prompt is included in [`system-prompt.txt`](conversational-agent-llm/system-prompt.txt). It configures the LLM as a concise voice assistant that maps natural language commands to Home Assistant scripts and tool calls. The prompt defines script mappings for common phrases (e.g. "make it cozy" triggers `script.ai_master_bedroom_cozy`), enforces tool argument rules, and keeps responses short and plain text for TTS output. Use it as a starting point and customize it with your own scripts and devices.
+
+### How It Works
+
+The LLM component uses a two-layer architecture: a **base image** and **model-specific compose stacks**.
+
+#### Step 1: Build the Base Image
+
+The [`llama-base-image/`](conversational-agent-llm/llama-base-image/) directory contains Dockerfiles that compile [llama.cpp](https://github.com/ggml-org/llama.cpp) from source and bundle it with **llama-proxy** (a Go-based logging proxy) into a single Docker image tagged `llama-server:latest`.
+
+Use [`build.sh`](conversational-agent-llm/llama-base-image/build.sh) to build the base image:
+
+```bash
+cd conversational-agent-llm/llama-base-image
+
+# x86_64 (default)
+./build.sh
+
+# ARM64 / DGX Spark
+./build.sh arm64
+```
+
+The x86 build uses [`Dockerfile`](conversational-agent-llm/llama-base-image/Dockerfile) which auto-detects CUDA architectures. The ARM64 build uses [`Dockerfile.arm64`](conversational-agent-llm/llama-base-image/Dockerfile.arm64) which targets CUDA architecture 121 (Blackwell/GB10) specifically.
+
+You only need to rebuild this image when llama.cpp itself gets updated.
+
+#### Step 2: Launch a Model
+
+Each model has its own compose stack that uses the `llama-server:latest` base image. Pick the model that fits your VRAM:
+
+- [`llama-qwen3-14b-q8/`](conversational-agent-llm/llama-qwen3-14b-q8/) — Qwen3-14B with speculative decoding (recommended)
+- [`llama-qwen3.5-9b-q8/`](conversational-agent-llm/llama-qwen3.5-9b-q8/) — Qwen3.5-9B lightweight alternative
+
+```bash
+cd conversational-agent-llm/llama-qwen3-14b-q8
+docker compose up -d
+```
+
+Place your GGUF model files in `/opt/models/llama-server/`. The compose files mount this directory as read-only at `/models` inside the container.
+
+### Llama-Proxy (Request Analytics)
+
+The Qwen3-14B compose stack includes **llama-proxy**, a transparent proxy that sits between Home Assistant and llama-server. It uses the same `llama-server:latest` base image but runs the `llama-proxy` binary instead.
+
+```
+Home Assistant (:8080) → llama-proxy → llama-server (:8081)
+```
+
+When configuring the LLM in Home Assistant, point it to the **proxy port** (`http://<host>:8080/v1`), not directly to llama-server. The proxy forwards all requests transparently while capturing metrics:
+
+- Request/response latency
+- Token counts and tokens per second
+- Speculative decoding draft acceptance rates
+- KV cache hit rates
+- Tool calls and their arguments
+- Full conversation history per request
+
+All metrics are viewable in a built-in **web dashboard** at `http://<host>:9090`.
+
+| Port | Service |
+|------|---------|
+| `8080` | llama-proxy (Home Assistant connects here) |
+| `8081` | llama-server (direct access if needed) |
+| `9090` | Dashboard (request analytics) |
 
 ### Key Configuration
 
@@ -114,7 +182,7 @@ A sample system prompt is included in [`system-prompt.txt`](conversational-agent
 |-----------|-------|---------|
 | Main Model | `Qwen3-14B-Q8_0.gguf` | Primary inference model |
 | Draft Model | `Qwen3-0.6B-Q4_K_M.gguf` | Speculative decoding for faster generation |
-| Context Window | `24576` tokens | Sufficient for complex multi-turn conversations |
+| Context Window | `18192` tokens | Sufficient for complex multi-turn conversations |
 | GPU Layers | `999` | Offload all layers to GPU |
 | Temperature | `0.0` | Deterministic output for reliable smart home control |
 | Flash Attention | `on` | Faster attention computation |
@@ -130,16 +198,6 @@ The draft model (`Qwen3-0.6B-Q4_K_M`) proposes candidate tokens that the main mo
 | `--draft-max` | `16` |
 | `--draft-min` | `1` |
 | `--draft-p-min` | `0.75` |
-
-### Running
-
-The full launch command is in [`llama-cpp.txt`](conversational-agent-llm/llama-cpp.txt). Run it with:
-
-```bash
-llama-server $(cat conversational-agent-llm/llama-cpp.txt | tr '\n' ' ')
-```
-
-Or use the [llama.cpp Docker image](https://github.com/ggml-org/llama.cpp/blob/master/docs/docker.md) with the same parameters.
 
 <details>
 <summary><strong>Benchmarks (NVIDIA GB10 - DGX Spark)</strong></summary>
@@ -172,7 +230,7 @@ Sample commands from the benchmark:
 
 ## 4. 🔊 Text-to-Speech (TTS) - Kokoro FastAPI
 
-**Directory:** [`text-to-speech/`](text-to-speech/)
+**Directory:** [`text-to-speech/kokoro/`](text-to-speech/kokoro/)
 
 Converts LLM responses back to natural-sounding speech using [Kokoro FastAPI](https://github.com/remsky/Kokoro-FastAPI), a GPU-accelerated ONNX TTS engine. A [Wyoming-OpenAI bridge](https://github.com/roryeckel/wyoming_openai) translates between the Wyoming protocol and Kokoro's OpenAI-compatible API.
 
@@ -182,7 +240,6 @@ This stack consists of two services:
 
 | Setting | Value |
 |---------|-------|
-| Image | `ghcr.io/remsky/kokoro-fastapi-gpu:latest` |
 | Port | `8880` |
 | ONNX GPU | `True` |
 | ONNX Threads | `12` |
@@ -202,33 +259,44 @@ This stack consists of two services:
 
 The bridge exposes a Wyoming-compatible endpoint on port `10900` that Home Assistant can discover and use as a TTS provider.
 
-<details>
-<summary><strong>Building for ARM64 (DGX Spark)</strong></summary>
+### x86/x64
 
-On **x86/x64** you can use the upstream image `ghcr.io/remsky/kokoro-fastapi-gpu:latest` directly. On **ARM64** machines like the DGX Spark, the upstream GPU Dockerfile is **broken** - it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image, causing the build to fail. You need to build the image locally instead. The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokorofastapi-arm64-build-patch.sh) script handles this:
+On x86/x64 systems, use the default [`compose.yaml`](text-to-speech/kokoro/compose.yaml) which pulls the upstream image directly:
 
 ```bash
-bash text-to-speech/kokorofastapi-arm64-build-patch.sh
+cd text-to-speech/kokoro
+docker compose up -d
+```
+
+### ARM64 (DGX Spark)
+
+On ARM64 machines like the DGX Spark, the upstream Kokoro GPU Dockerfile is **broken** - it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image, causing the build to fail. You need to build the image locally first, then use the ARM64-specific compose file.
+
+The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokoro/kokorofastapi-arm64-build-patch.sh) script handles the build:
+
+```bash
+cd text-to-speech/kokoro
+bash kokorofastapi-arm64-build-patch.sh
 ```
 
 What the script does:
 
-1. **Pulls the latest source** from the Kokoro FastAPI repo at `/opt/kokoro-fastapi`
-2. **Patches the Dockerfile** - uses `sed` to strip the `--platform=$BUILDPLATFORM` flag from `docker/gpu/Dockerfile`, writing a corrected `Dockerfile.arm64` that builds natively on the host architecture
-3. **Builds a local Docker image** tagged as `kokoro-fastapi-gpu:local` - update the image in the compose file to use this tag instead of the upstream one
-4. **Restarts the compose stack** at `/opt/wyoming-openai` to pick up the new image
+1. **Clones** the [Kokoro FastAPI repo](https://github.com/remsky/Kokoro-FastAPI) into `./Kokoro-FastAPI` (skipped if already cloned)
+2. **Pulls the latest changes** from upstream
+3. **Patches the Dockerfile** - uses `sed` to strip the `--platform=$BUILDPLATFORM` flag, writing a corrected `Dockerfile.arm64` that builds natively on the host architecture
+4. **Builds a local Docker image** tagged as `kokoro-fastapi-gpu:local`
+5. **Restarts the compose stack** using [`compose.arm64.yaml`](text-to-speech/kokoro/compose.arm64.yaml)
 
-You need to re-run this script whenever you want to update Kokoro FastAPI to a newer version.
-
-</details>
+Re-run this script whenever you want to update Kokoro FastAPI to a newer version. To start the ARM64 stack manually:
 
 ```bash
-docker compose -f text-to-speech/compose.kokorofastapi.yml up -d
+cd text-to-speech/kokoro
+docker compose -f compose.arm64.yaml up -d
 ```
 
 ### Volume Configuration
 
-The `kokoro.env` file is mounted into the container and controls runtime settings like `default_volume_multiplier=3.0`. Place your model files in `/opt/models/kokoro`.
+The [`kokoro.env`](text-to-speech/kokoro/kokoro.env) file is mounted into the container and controls runtime settings like `default_volume_multiplier=3.0`. Place your model files in `/opt/models/kokoro`.
 
 ---
 
@@ -258,7 +326,9 @@ This is the presentation layer that ties the entire pipeline together - it captu
 | Wake Word (OpenWakeWord) | `10400` | TCP/UDP |
 | Speech-to-Text (ONNX ASR) | `10300` | TCP |
 | Speaker Verification (Voice Match) | `10350` | TCP |
-| LLM (llama.cpp) | `8080` | HTTP |
+| LLM Proxy (Home Assistant connects here) | `8080` | HTTP |
+| LLM Server (llama-server direct) | `8081` | HTTP |
+| LLM Dashboard | `9090` | HTTP |
 | TTS Engine (Kokoro FastAPI) | `8880` | HTTP |
 | TTS Bridge (Wyoming-OpenAI) | `10900` | TCP |
 
@@ -273,7 +343,7 @@ Once all services are running, add them as Wyoming protocol integrations in Home
    - Wake Word: `<host>:10400`
    - STT: `<host>:10300` (or `<host>:10350` if using Voice Match)
    - TTS: `<host>:10900`
-3. Configure the **Conversation Agent** to use the llama.cpp instance (`http://<host>:8080/v1`) via an OpenAI-compatible integration
+3. Configure the **Conversation Agent** to use the llama-proxy instance (`http://<host>:8080/v1`) via an OpenAI-compatible integration
 4. Create a **Voice Assistant** pipeline combining all four components
 
 ---

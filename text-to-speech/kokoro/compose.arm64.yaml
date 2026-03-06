@@ -14,7 +14,7 @@ services:
       TTS_MODELS: "kokoro"
       TTS_STREAMING_MODELS: "kokoro"
       TTS_BACKEND: "KOKORO_FASTAPI"
-#      TTS_VOICES: "af_heart af_alloy af_aoede af_bella af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky am_adam am_echo am_eric am_fenrir am_liam am_micha>
+#      TTS_VOICES: "af_heart af_alloy af_aoede af_bella af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky am_adam am_echo am_eric am_fenrir am_liam am_michael"
       TTS_VOICES: "af_sky"
       TTS_STREAMING_VOICES: "af_sky"
       TTS_STREAMING_MIN_WORDS: "6"
@@ -24,8 +24,9 @@ services:
         condition: service_healthy
 
 
+  # Run kokorofastapi-arm64-build-patch.sh first to build the local image
   kokoro:
-    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    image: kokoro-fastapi-gpu:local
     container_name: kokoro
     restart: unless-stopped
     ports:

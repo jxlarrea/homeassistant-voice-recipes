@@ -5,19 +5,27 @@
 # All model containers use this image. Rebuild when llama.cpp updates.
 #
 # Usage:
-#   cd /opt/llama.cpp/llama-base-image
-#   ./build.sh
+#   ./build.sh          # x86_64 (default)
+#   ./build.sh arm64    # ARM64 / DGX Spark
 # =============================================================================
 set -e
 
 IMAGE="llama-server:latest"
 
-echo "══════════════════════════════════════════════"
-echo "  Building $IMAGE from latest llama.cpp"
-echo "══════════════════════════════════════════════"
+if [ "$1" = "arm64" ]; then
+  DOCKERFILE="Dockerfile.arm64"
+  echo "══════════════════════════════════════════════"
+  echo "  Building $IMAGE (ARM64) from latest llama.cpp"
+  echo "══════════════════════════════════════════════"
+else
+  DOCKERFILE="Dockerfile"
+  echo "══════════════════════════════════════════════"
+  echo "  Building $IMAGE (x86_64) from latest llama.cpp"
+  echo "══════════════════════════════════════════════"
+fi
 echo ""
 
-docker build -t "$IMAGE" .
+docker build -f "$DOCKERFILE" -t "$IMAGE" .
 
 echo ""
 echo "Done! Image: $IMAGE"

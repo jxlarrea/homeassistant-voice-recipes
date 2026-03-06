@@ -1,11 +1,17 @@
 #!/bin/bash
 set -e
 
-REPO_DIR="/opt/kokoro-fastapi"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$SCRIPT_DIR/Kokoro-FastAPI"
 IMAGE_NAME="kokoro-fastapi-gpu:local"
-COMPOSE_DIR="/opt/wyoming-openai"
 
 echo "=== Updating Kokoro FastAPI ==="
+
+# Clone if not already present
+if [ ! -d "$REPO_DIR" ]; then
+  echo "Cloning Kokoro-FastAPI..."
+  git clone https://github.com/remsky/Kokoro-FastAPI "$REPO_DIR"
+fi
 
 # Pull latest
 cd "$REPO_DIR"
@@ -22,8 +28,8 @@ docker build -f docker/gpu/Dockerfile.arm64 -t "$IMAGE_NAME" .
 
 # Restart
 echo "Restarting containers..."
-cd "$COMPOSE_DIR"
-docker compose down
-docker compose up -d
+cd "$SCRIPT_DIR"
+docker compose -f compose.arm64.yaml down
+docker compose -f compose.arm64.yaml up -d
 
 echo "=== Done ==="
