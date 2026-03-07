@@ -236,75 +236,47 @@ Sample commands from the benchmark:
 
 ---
 
-## 4. 🔊 Text-to-Speech (TTS) - Kokoro FastAPI
+## 4. 🔊 Text-to-Speech (TTS)
+
+**Directory:** [`text-to-speech/`](text-to-speech/)
+
+Converts LLM responses back to natural-sounding speech using [Kokoro FastAPI](https://github.com/remsky/Kokoro-FastAPI), a lightweight GPU-accelerated ONNX TTS engine. A [Wyoming-OpenAI bridge](https://github.com/roryeckel/wyoming_openai) translates between the Wyoming protocol and the engine's OpenAI-compatible API, exposing a Wyoming endpoint on port `10900` for Home Assistant.
+
+### Kokoro FastAPI
 
 **Directory:** [`text-to-speech/kokoro/`](text-to-speech/kokoro/)
 
-Converts LLM responses back to natural-sounding speech using [Kokoro FastAPI](https://github.com/remsky/Kokoro-FastAPI), a GPU-accelerated ONNX TTS engine. A [Wyoming-OpenAI bridge](https://github.com/roryeckel/wyoming_openai) translates between the Wyoming protocol and Kokoro's OpenAI-compatible API.
-
-This stack consists of two services:
-
-### Kokoro FastAPI (TTS Engine)
+[Kokoro FastAPI](https://github.com/remsky/Kokoro-FastAPI) is a lightweight, GPU-accelerated ONNX TTS engine. Fast and simple — a good default choice.
 
 | Setting | Value |
 |---------|-------|
 | Port | `8880` |
-| ONNX GPU | `True` |
-| ONNX Threads | `12` |
-| Inter-Op Threads | `6` |
-| Execution Mode | `parallel` |
-| Optimization Level | `all` |
-
-### Wyoming-OpenAI Bridge
-
-| Setting | Value |
-|---------|-------|
-| Image | `ghcr.io/roryeckel/wyoming_openai:latest` |
-| Port | `10900` (exposed) → `10300` (internal) |
 | Voice | `af_sky` |
 | Speed | `1.1x` |
 | Streaming | Enabled (min 6 words, max 220 chars) |
 
-The bridge exposes a Wyoming-compatible endpoint on port `10900` that Home Assistant can discover and use as a TTS provider.
-
-### x86/x64
-
-On x86/x64 systems, use the default [`compose.yaml`](text-to-speech/kokoro/compose.yaml) which pulls the upstream image directly:
+**x86/x64** — Uses the upstream image directly via [`compose.yaml`](text-to-speech/kokoro/compose.yaml):
 
 ```bash
 cd text-to-speech/kokoro
 docker compose up -d
 ```
 
-### ARM64 (DGX Spark)
-
-On ARM64 machines like the DGX Spark, the upstream Kokoro GPU Dockerfile is **broken** - it uses `FROM --platform=$BUILDPLATFORM` which forces an x86 base image, causing the build to fail. You need to build the image locally first, then use the ARM64-specific compose file.
-
-The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokoro/kokorofastapi-arm64-build-patch.sh) script handles the build:
+**ARM64 (DGX Spark)** — The upstream GPU Dockerfile is broken on ARM64 (forces x86 base image). The included [`kokorofastapi-arm64-build-patch.sh`](text-to-speech/kokoro/kokorofastapi-arm64-build-patch.sh) script clones the repo, patches the Dockerfile, and builds a local image:
 
 ```bash
 cd text-to-speech/kokoro
 bash kokorofastapi-arm64-build-patch.sh
 ```
 
-What the script does:
-
-1. **Clones** the [Kokoro FastAPI repo](https://github.com/remsky/Kokoro-FastAPI) into `./Kokoro-FastAPI` (skipped if already cloned)
-2. **Pulls the latest changes** from upstream
-3. **Patches the Dockerfile** - uses `sed` to strip the `--platform=$BUILDPLATFORM` flag, writing a corrected `Dockerfile.arm64` that builds natively on the host architecture
-4. **Builds a local Docker image** tagged as `kokoro-fastapi-gpu:local`
-5. **Restarts the compose stack** using [`compose.arm64.yaml`](text-to-speech/kokoro/compose.arm64.yaml)
-
-Re-run this script whenever you want to update Kokoro FastAPI to a newer version. To start the ARM64 stack manually:
+To start the ARM64 stack manually:
 
 ```bash
 cd text-to-speech/kokoro
 docker compose -f compose.arm64.yaml up -d
 ```
 
-### Volume Configuration
-
-The [`kokoro.env`](text-to-speech/kokoro/kokoro.env) file is mounted into the container and controls runtime settings like `default_volume_multiplier=3.0`. Place your model files in `/opt/models/kokoro`.
+**Volume Configuration:** The [`kokoro.env`](text-to-speech/kokoro/kokoro.env) file controls runtime settings like `default_volume_multiplier=3.0`. Place your model files in `/opt/models/kokoro`.
 
 ---
 

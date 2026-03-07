@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # =============================================================================
 # build.sh — Build/rebuild the llama-server base image from latest source
 #
