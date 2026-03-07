@@ -173,60 +173,110 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Read upstream response
-	rawBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read upstream response", http.StatusBadGateway)
-		return
-	}
+	// Check if this is an SSE streaming response
+	isSSE := strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream")
 
-	// Forward response headers and body to client as-is
-	for k, vv := range resp.Header {
-		for _, v := range vv {
-			w.Header().Add(k, v)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-	w.Write(rawBody)
-
-	// Decompress for parsing if needed
-	respBody := rawBody
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		gz, err := gzip.NewReader(bytes.NewReader(rawBody))
-		if err == nil {
-			decompressed, err := io.ReadAll(gz)
-			gz.Close()
-			if err == nil {
-				respBody = decompressed
+	if isSSE {
+		// Stream SSE responses through to the client in real-time
+		for k, vv := range resp.Header {
+			for _, v := range vv {
+				w.Header().Add(k, v)
 			}
 		}
-	}
+		w.WriteHeader(resp.StatusCode)
 
-	// Handle SSE streaming responses: reconstruct from event stream
-	if bytes.HasPrefix(respBody, []byte("data:")) {
-		respBody = parseSSEResponse(respBody)
-	}
+		flusher, canFlush := w.(http.Flusher)
+		var capture bytes.Buffer
 
-	latency := time.Since(start).Milliseconds()
-
-	// Async log — after response is sent
-	go func() {
-		entry := RequestLog{
-			Timestamp:    time.Now().Format("2006-01-02 15:04:05"),
-			LatencyMs:    latency,
-			UserMessage:  userMsg,
-			UserContext:   userContext,
-			SystemPrompt: systemPrompt,
-			History:      history,
-			ToolResult:   toolResult,
-			StatusCode:   resp.StatusCode,
+		buf := make([]byte, 4096)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				capture.Write(buf[:n])
+				w.Write(buf[:n])
+				if canFlush {
+					flusher.Flush()
+				}
+			}
+			if readErr != nil {
+				break
+			}
 		}
-		parseResponse(respBody, &entry)
-		// Skip non-chat requests (health checks, prompt updates, etc.)
-		if entry.CompletTokens > 0 || entry.ToolName != "" {
-			buffer.Add(entry)
+
+		respBody := capture.Bytes()
+		if bytes.HasPrefix(respBody, []byte("data:")) {
+			respBody = parseSSEResponse(respBody)
 		}
-	}()
+
+		latency := time.Since(start).Milliseconds()
+		go func() {
+			entry := RequestLog{
+				Timestamp:    time.Now().Format("2006-01-02 15:04:05"),
+				LatencyMs:    latency,
+				UserMessage:  userMsg,
+				UserContext:  userContext,
+				SystemPrompt: systemPrompt,
+				History:      history,
+				ToolResult:   toolResult,
+				StatusCode:   resp.StatusCode,
+			}
+			parseResponse(respBody, &entry)
+			if entry.CompletTokens > 0 || entry.ToolName != "" {
+				buffer.Add(entry)
+			}
+		}()
+	} else {
+		// Non-streaming: read full response, then forward
+		rawBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			http.Error(w, "Failed to read upstream response", http.StatusBadGateway)
+			return
+		}
+
+		for k, vv := range resp.Header {
+			for _, v := range vv {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		w.Write(rawBody)
+
+		// Decompress for parsing if needed
+		respBody := rawBody
+		if resp.Header.Get("Content-Encoding") == "gzip" {
+			gz, err := gzip.NewReader(bytes.NewReader(rawBody))
+			if err == nil {
+				decompressed, err := io.ReadAll(gz)
+				gz.Close()
+				if err == nil {
+					respBody = decompressed
+				}
+			}
+		}
+
+		// Handle SSE-like responses that weren't detected by Content-Type
+		if bytes.HasPrefix(respBody, []byte("data:")) {
+			respBody = parseSSEResponse(respBody)
+		}
+
+		latency := time.Since(start).Milliseconds()
+		go func() {
+			entry := RequestLog{
+				Timestamp:    time.Now().Format("2006-01-02 15:04:05"),
+				LatencyMs:    latency,
+				UserMessage:  userMsg,
+				UserContext:  userContext,
+				SystemPrompt: systemPrompt,
+				History:      history,
+				ToolResult:   toolResult,
+				StatusCode:   resp.StatusCode,
+			}
+			parseResponse(respBody, &entry)
+			if entry.CompletTokens > 0 || entry.ToolName != "" {
+				buffer.Add(entry)
+			}
+		}()
+	}
 }
 
 // ─── JSON Parsing ───────────────────────────────────────────────────────────
