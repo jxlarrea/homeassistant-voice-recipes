@@ -251,9 +251,9 @@ Converts LLM responses back to natural-sounding speech using [Kokoro FastAPI](ht
 | Setting | Value |
 |---------|-------|
 | Port | `8880` |
-| Voice | `af_sky` |
+| Voices | 20 built-in (10 female, 10 male) |
 | Speed | `1.1x` |
-| Streaming | Enabled (min 6 words, max 220 chars) |
+| Streaming | Enabled (min 10 words, max 220 chars) |
 
 **x86/x64** — Uses the upstream image directly via [`compose.yaml`](text-to-speech/kokoro/compose.yaml):
 
@@ -276,7 +276,7 @@ cd text-to-speech/kokoro
 docker compose -f compose.arm64.yaml up -d
 ```
 
-**Volume Configuration:** The [`kokoro.env`](text-to-speech/kokoro/kokoro.env) file controls runtime settings like `default_volume_multiplier=3.0`. Place your model files in `/opt/models/kokoro`.
+**Volume Configuration:** The [`kokoro.env`](text-to-speech/kokoro/kokoro.env) file controls runtime settings like `default_volume_multiplier=2.0`. Place your model files in `/opt/models/kokoro`.
 
 ---
 
