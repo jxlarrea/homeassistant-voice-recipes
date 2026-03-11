@@ -33,7 +33,7 @@ services:
       - -m
       - /models/Qwen3-14B-Q8_0.gguf
       - -md
-      - /models/Qwen3-0.6B-Q4_K_M.gguf
+      - /models/Qwen3-0.6B-Q8_0.gguf
       - -c
       - "18192"
       - -cd
@@ -72,7 +72,7 @@ services:
       - --min-p
       - "0.00"
       - --presence-penalty
-      - "1.5"
+      - "0.2"
       - --repeat-penalty
       - "1.0"
       - --cache-type-k
