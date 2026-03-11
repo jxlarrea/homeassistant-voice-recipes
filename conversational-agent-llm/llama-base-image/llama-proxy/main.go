@@ -772,6 +772,7 @@ const dashboardHTML = `
     <span>avg <span class="val" id="m-avg">-</span></span>
     <span>p95 <span class="val" id="m-p95">-</span></span>
     <span>tools <span class="val" id="m-tools">0</span></span>
+    <span>pp/s <span class="val" id="m-pp">-</span></span>
     <span>draft <span class="val" id="m-draft">-</span></span>
     <span>cache <span class="val" id="m-cache">-</span></span>
   </div>
@@ -852,7 +853,8 @@ function render() {
     let tags = '';
     if (d.prompt_tokens > 0 || d.cache_tokens > 0) tags += '<span class="tag tokens">' + (d.cache_tokens + d.prompt_tokens) + '→' + d.completion_tokens + ' tok</span>';
     if (d.cache_tokens > 0) tags += '<span class="tag cache">' + ((d.cache_tokens / (d.cache_tokens + d.prompt_tokens)) * 100).toFixed(0) + '% cached</span>';
-    if (d.predicted_tps > 0) tags += '<span class="tag speed">' + d.predicted_tps.toFixed(1) + ' t/s</span>';
+    if (d.prompt_tps > 0) tags += '<span class="tag speed" style="opacity:0.7">' + d.prompt_tps.toFixed(1) + ' pp/s</span>';
+    if (d.predicted_tps > 0) tags += '<span class="tag speed">' + d.predicted_tps.toFixed(1) + ' tg/s</span>';
     if (d.draft_accept_rate > 0) tags += '<span class="tag draft">' + (d.draft_accept_rate*100).toFixed(0) + '% draft</span>';
 
     let detail = '<div class="detail-grid">';
@@ -922,11 +924,14 @@ function render() {
   const tools = filtered.filter(d => d.tool_name).length;
   const drafts = filtered.filter(d => d.draft_accept_rate > 0);
   const avgDraft = drafts.length ? (drafts.reduce((s,d) => s+d.draft_accept_rate, 0) / drafts.length * 100).toFixed(0) + '%' : '-';
+  const pps = filtered.filter(d => d.prompt_tps > 0);
+  const avgPP = pps.length ? (pps.reduce((s,d) => s+d.prompt_tps, 0) / pps.length).toFixed(0) + ' t/s' : '-';
 
   document.getElementById('m-count').textContent = filtered.length;
   document.getElementById('m-avg').textContent = avg + 'ms';
   document.getElementById('m-p95').textContent = p95 + 'ms';
   document.getElementById('m-tools').textContent = tools;
+  document.getElementById('m-pp').textContent = avgPP;
   document.getElementById('m-draft').textContent = avgDraft;
 
   const cached = filtered.filter(d => d.cache_tokens > 0);
