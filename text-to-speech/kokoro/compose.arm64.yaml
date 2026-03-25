@@ -8,13 +8,14 @@ services:
     environment:
       WYOMING_URI: tcp://0.0.0.0:10300
       WYOMING_LOG_LEVEL: INFO
-      WYOMING_LANGUAGES: en
+      WYOMING_LANGUAGES: "en,es"
       TTS_SPEED: 1.1
       TTS_OPENAI_URL: http://kokoro:8880/v1
       TTS_MODELS: "kokoro"
       TTS_STREAMING_MODELS: "kokoro"
       TTS_BACKEND: "KOKORO_FASTAPI"
-      TTS_STREAMING_VOICES: "af_heart af_alloy af_aoede af_bella af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky am_adam am_echo am_eric am_fenrir am_liam am_michael am_onyx am_puck am_santa"
+      #TTS_VOICES: "af_heart af_alloy af_aoede af_bella af_jessica af_kore af_nicole af_nova af_river af_sarah af_sky am_adam am_echo am_eric am_fenrir am_liam am_michael am_onyx am_puck am_santa ef_luisa"
+      TTS_VOICES: "af_heart ef_luisa2" 
       TTS_STREAMING_MIN_WORDS: "10"
       TTS_STREAMING_MAX_CHARS: "220"
     depends_on:
@@ -37,6 +38,7 @@ services:
       - ONNX_OPTIMIZATION_LEVEL=all
       - ONNX_MEMORY_PATTERN=True
       - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
+      - ALLOW_LOCAL_VOICE_SAVING=true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8880/v1/test"]
       interval: 30s
@@ -46,6 +48,7 @@ services:
     volumes:
       - ./kokoro.env:/app/.env
       - /opt/models/kokoro:/app/api/src/models/v1_0
+      - /opt/models/kokoro/voices:/app/api/src/voices/v1_0
     deploy:
       resources:
         reservations:
