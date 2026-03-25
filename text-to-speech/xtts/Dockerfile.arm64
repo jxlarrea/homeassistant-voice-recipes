@@ -1,0 +1,74 @@
+# =============================================================================
+# wyoming-xtts ARM64 image for DGX Spark (ARM64 / CUDA)
+#
+# Uses NVIDIA NGC PyTorch base image — ships with PyTorch pre-built for
+# ARM64 + CUDA, avoiding the need to compile or find ARM64 wheel packages.
+#
+# DeepSpeed has no ARM64 support — keep XTTS_DEEPSPEED=false.
+#
+# Build: ./build.sh
+# =============================================================================
+
+FROM nvcr.io/nvidia/pytorch:25.04-py3
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    ninja-build \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust via rustup — Ubuntu's packaged rustc is too old for sudachipy.
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# Remove torchvision — conflicts with transformers.
+RUN pip uninstall -y torchvision || true
+
+# 1) Install all dependencies that don't pin torch versions.
+RUN pip install --no-cache-dir \
+        'transformers>=4.43,<4.47' \
+        'wyoming[zeroconf]>=1.8.0' \
+        'langdetect>=1.0.9' \
+        'sentence-stream>=1.2.0' \
+        'pydantic-settings>=2.0' \
+        'requests>=2.23.0' \
+        'numpy>=1.20' \
+        'coqui-tts-trainer>=0.1.4,<0.2.0' \
+        'coqpit>=0.0.16' \
+        'librosa>=0.10.0' \
+        'soundfile>=0.12.0' \
+        'gruut[de,es,fr]>=2.4.0' \
+        'pypinyin>=0.21.0' \
+        'hangul-romanize>=0.1.0' \
+        'anyascii>=0.3.0' \
+        'num2words' \
+        'packaging>=23.1' \
+        'einops>=0.6.0' \
+        'spacy[ja]>=3,<3.8' \
+        'pysbd>=0.3.4' \
+        'inflect>=5.6.0' \
+        'matplotlib>=3.7.0'
+
+# 2) Install packages with strict torch pins using --no-deps.
+RUN pip install --no-cache-dir --no-deps \
+        git+https://github.com/lmoe/wyoming-xtts \
+        'coqui-tts==0.24.3' \
+        'encodec>=0.1.1'
+
+# 3) Build torchaudio from source LAST so nothing can overwrite it with the
+#    PyPI wheel (which requires CUDA 13, but NGC has CUDA 12.6).
+RUN pip install --no-cache-dir --no-deps --no-build-isolation \
+        git+https://github.com/pytorch/audio.git@v2.6.0
+
+VOLUME /data
+ENV XTTS_ASSETS=/data
+
+EXPOSE 10200
+
+ENTRYPOINT ["python", "-m", "wyoming_xtts"]
+CMD ["--uri", "tcp://0.0.0.0:10200"]
