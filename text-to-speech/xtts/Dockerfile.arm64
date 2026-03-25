@@ -29,6 +29,10 @@ ENV PATH="/root/.cargo/bin:$PATH"
 # Remove torchvision — conflicts with transformers.
 RUN pip uninstall -y torchvision || true
 
+# Override NGC's pip constraints (pins tensorboard==2.16.2 which conflicts
+# with coqui-tts-trainer's requirement of tensorboard>=2.17.0).
+ENV PIP_CONSTRAINT=""
+
 # 1) Install all dependencies that don't pin torch versions.
 RUN pip install --no-cache-dir \
         'transformers>=4.43,<4.47' \
