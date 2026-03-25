@@ -7,8 +7,14 @@ services:
       - "10900:10200"
     environment:
       XTTS_URI: tcp://0.0.0.0:10200
-      XTTS_LANGUAGE_FALLBACK: es
+      XTTS_LANGUAGE_FALLBACK: en
+      XTTS_LANGUAGE_NO_DETECT: true
       XTTS_DEEPSPEED: false  # DeepSpeed has no ARM64 support
+      XTTS_SPEED: 1.15
+      XTTS_TEMPERATURE: 0.25
+      XTTS_REPETITION_PENALTY: 10.0
+      XTTS_TOP_K: 15
+      XTTS_TOP_P: 0.7
       XTTS_SEED: 42
     volumes:
       - /opt/models/xtts/voices:/data/voices
