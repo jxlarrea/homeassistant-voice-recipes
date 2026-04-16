@@ -13,7 +13,7 @@ Every component in this stack runs **entirely on your own hardware**. Your voice
 graph TD
     A("👂 <b>Wake Word Detection</b><br><i>OpenWakeWord</i><br><code>:10400</code>")
     B("🎙️ <b>Speech-to-Text</b><br><i>ONNX ASR + Voice Match</i><br><code>:10300 · :10350</code>")
-    C("🧠 <b>Conversational Agent</b><br><i>Qwen3-14B · llama.cpp</i><br><code>:8080</code>")
+    C("🧠 <b>Conversational Agent</b><br><i>Gemma4-26B-A4B · llama.cpp</i><br><code>:8080</code>")
     D("🔊 <b>Text-to-Speech</b><br><i>Kokoro FastAPI</i><br><code>:8880 · :10900</code>")
 
     A -- "audio stream" --> B -- "transcript" --> C -- "response text" --> D
@@ -113,11 +113,11 @@ docker compose up -d
 
 ---
 
-## 3. 🧠 Conversational Agent (LLM) - [Qwen3-14B](https://huggingface.co/unsloth/Qwen3-14B-GGUF)
+## 3. 🧠 Conversational Agent (LLM) - [Gemma-4-26B-A4B-it-Q8](https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF)
 
 **Directory:** [`conversational-agent-llm/`](conversational-agent-llm/)
 
-The brain of the pipeline. Runs [Qwen3-14B](https://huggingface.co/unsloth/Qwen3-14B-GGUF) (Q8_0 quantization) with **speculative decoding** using a [Qwen3-0.6B](https://huggingface.co/unsloth/Qwen3-0.6B-GGUF) (Q4_K_M quantization) draft model for significantly faster inference. Served via [llama.cpp](https://github.com/ggml-org/llama.cpp) with an OpenAI-compatible API. If you don't have the VRAM to run the 14B model, [Qwen3.5-9B](https://huggingface.co/unsloth/Qwen3.5-9B-GGUF) (Q8_0 quantization) is a solid alternative for GPUs with less memory.
+The brain of the pipeline. Runs [Gemma-4-26B-A4B](https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF) (Q8_0 quantization) with **speculative decoding** using a [Gemma-4-E2B-it-Q4_0](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) (Q4_0 quantization) draft model for significantly faster inference. Served via [llama.cpp](https://github.com/ggml-org/llama.cpp) with an OpenAI-compatible API. If you don't have the VRAM to run the 26B model, [Gemma-4-E4B-it-GGUF](https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF) (Q8_0 quantization) is a solid alternative for GPUs with less memory.
 
 A sample system prompt is included in [`system-prompt.txt`](conversational-agent-llm/system-prompt.txt). It configures the LLM as a concise voice assistant that maps natural language commands to Home Assistant scripts and tool calls. The prompt defines script mappings for common phrases (e.g. "make it cozy" triggers `script.ai_master_bedroom_cozy`), enforces tool argument rules, and keeps responses short and plain text for TTS output. Use it as a starting point and customize it with your own scripts and devices.
 
@@ -149,11 +149,10 @@ You only need to rebuild this image when llama.cpp itself gets updated.
 
 Each model has its own compose stack that uses the `llama-server:latest` base image. Pick the model that fits your VRAM:
 
-- [`llama-qwen3-14b-q8/`](conversational-agent-llm/llama-qwen3-14b-q8/) — Qwen3-14B with speculative decoding (recommended)
-- [`llama-qwen3.5-9b-q8/`](conversational-agent-llm/llama-qwen3.5-9b-q8/) — Qwen3.5-9B lightweight alternative
+- [`llama-gemma4-26B-A4B-it-Q8/`](conversational-agent-llm/llama-gemma4-26B-A4B-it-Q8/) — Gemma-4-26B-A4B-it-Q8 with speculative decoding (recommended)
 
 ```bash
-cd conversational-agent-llm/llama-qwen3-14b-q8
+cd conversational-agent-llm/llama-gemma4-26B-A4B-it-Q8
 docker compose up -d
 ```
 
@@ -161,7 +160,7 @@ Place your GGUF model files in `/opt/models/llama-server/`. The compose files mo
 
 ### Llama-Proxy (Request Analytics)
 
-The Qwen3-14B compose stack includes **llama-proxy**, a transparent proxy that sits between Home Assistant and llama-server. It uses the same `llama-server:latest` base image but runs the `llama-proxy` binary instead.
+The Gemma-4-26B-A4B compose stack includes **llama-proxy**, a transparent proxy that sits between Home Assistant and llama-server. It uses the same `llama-server:latest` base image but runs the `llama-proxy` binary instead.
 
 ```
 Home Assistant (:8080) → llama-proxy → llama-server (:8081)
@@ -188,8 +187,8 @@ All metrics are viewable in a built-in **web dashboard** at `http://<host>:9090`
 
 | Parameter | Value | Purpose |
 |-----------|-------|---------|
-| Main Model | `Qwen3-14B-Q8_0.gguf` | Primary inference model |
-| Draft Model | `Qwen3-0.6B-Q4_K_M.gguf` | Speculative decoding for faster generation |
+| Main Model | `gemma-4-26B-A4B-it-Q8_0.gguf` | Primary inference model |
+| Draft Model | `gemma-4-E2B-it-Q4_0.gguf` | Speculative decoding for faster generation |
 | Context Window | `18192` tokens | Sufficient for complex multi-turn conversations |
 | GPU Layers | `999` | Offload all layers to GPU |
 | Temperature | `0.0` | Deterministic output for reliable smart home control |
@@ -199,40 +198,13 @@ All metrics are viewable in a built-in **web dashboard** at `http://<host>:9090`
 
 ### Speculative Decoding
 
-The draft model (`Qwen3-0.6B-Q4_K_M`) proposes candidate tokens that the main model (`Qwen3-14B-Q8_0`) verifies in parallel. This yields significant speedups for tool-calling workloads where output patterns are predictable.
+The draft model (`gemma-4-E2B-it-Q4_0`) proposes candidate tokens that the main model (`gemma-4-26B-A4B-it-Q8_0.gguf`) verifies in parallel. This yields significant speedups for tool-calling workloads where output patterns are predictable.
 
 | Draft Parameter | Value |
 |----------------|-------|
 | `--draft-max` | `16` |
 | `--draft-min` | `1` |
 | `--draft-p-min` | `0.75` |
-
-<details>
-<summary><strong>Benchmarks (NVIDIA GB10 - DGX Spark)</strong></summary>
-
-Tested across 20 different home automation commands with 3 repetitions each. Full results in [`qwen3-benchmarks.md`](conversational-agent-llm/qwen3-benchmarks.md).
-
-| Metric | Result |
-|--------|--------|
-| Accuracy | **100%** (60/60 correct) |
-| Average Latency | **437 ms** |
-| Min Latency | 293 ms |
-| Max Latency | 918 ms |
-
-Sample commands from the benchmark:
-
-| Voice Command | Avg (ms) | Accuracy | Tool Called |
-|---------------|----------|----------|-------------|
-| "it is bedtime" | 418 | 3/3 | `script.ai_master_bedroom_bedtime` |
-| "make it cozy" | 427 | 3/3 | `script.ai_master_bedroom_cozy` |
-| "food is here" | 453 | 3/3 | `script.food_delivery_here` |
-| "open bedroom shades" | 469 | 3/3 | `script.ai_open_master_bedroom_curtains` |
-| "turn on office ac" | 458 | 3/3 | `script.office_ac_on_eco` |
-| "dim the office" | 462 | 3/3 | `scene_office_dim` |
-| "we have visitors" | 437 | 3/3 | `ai_we_have_visitors` |
-| "close office shades" | 504 | 3/3 | `script.ai_close_office_curtains` |
-
-</details>
 
 ---
 

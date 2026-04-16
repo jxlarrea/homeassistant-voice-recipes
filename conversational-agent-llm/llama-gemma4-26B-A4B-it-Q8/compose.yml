@@ -17,7 +17,7 @@
 services:
   llama-server:
     image: llama-server:latest
-    container_name: llama-qwen3-14b-q8
+    container_name: llama-gemma-4-26B-A4B
     restart: unless-stopped
     network_mode: host
     volumes:
@@ -31,9 +31,9 @@ services:
               capabilities: [gpu]
     command:
       - -m
-      - /models/Qwen3-14B-Q8_0.gguf
+      - /models/gemma-4-26B-A4B-it-Q8_0.gguf
       - -md
-      - /models/Qwen3-0.6B-Q8_0.gguf
+      - /models/gemma-4-E2B-it-Q4_0.gguf
       - -c
       - "18192"
       - -cd
@@ -92,7 +92,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 60s
 
   proxy:
     image: llama-server:latest
