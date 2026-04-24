@@ -1,5 +1,5 @@
 # =============================================================================
-# Qwen3-14B-Q8_0 + 0.6B draft — HA Voice Pipeline
+# Gemma-4-26B-A4B-it-Q8_0 + Gemma-4-E2B-it-Q4_0 draft — HA Voice Pipeline
 #
 # Ports:
 #   8080 — Proxy (HA connects here, transparent)
