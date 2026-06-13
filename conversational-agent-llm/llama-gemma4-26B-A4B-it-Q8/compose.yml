@@ -28,16 +28,16 @@ services:
           devices:
             - driver: nvidia
               count: all
-              capabilities: [gpu]
+              capabilities: [ gpu ]
     command:
       - -m
       - /models/gemma-4-26B-A4B-it-Q8_0.gguf
       - -md
-      - /models/gemma-4-E2B-it-Q4_0.gguf
+      - /models/gemma-4-26B-A4B-it-Q8_0-MTP.gguf
+      - --spec-type
+      - "draft-mtp"
       - -c
-      - "18192"
-      - -cd
-      - "9182"
+      - "16384"
       - -ngld
       - "999"
       - -b
@@ -46,11 +46,11 @@ services:
       - "512"
       - -ngl
       - "999"
-      - --draft-max
-      - "16"
-      - --draft-min
+      - --spec-draft-n-max
+      - "4"
+      - --spec-draft-n-min
       - "1"
-      - --draft-p-min
+      - --spec-draft-p-min
       - "0.75"
       - --jinja
       - -fa
@@ -79,8 +79,8 @@ services:
       - q8_0
       - --cache-type-v
       - q8_0
-      - --chat-template-kwargs
-      - '{"enable_thinking":false,"reasoning_effort": "low"}'
+      - --reasoning
+      - "off"
       - --host
       - "0.0.0.0"
       - --port
@@ -88,7 +88,7 @@ services:
       - --log-verbosity
       - "3"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/health" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -99,7 +99,7 @@ services:
     container_name: llama-proxy
     restart: unless-stopped
     network_mode: host
-    entrypoint: ["llama-proxy"]
+    entrypoint: [ "llama-proxy" ]
     environment:
       - PROXY_LISTEN=:8080
       - PROXY_UPSTREAM=http://127.0.0.1:8081
